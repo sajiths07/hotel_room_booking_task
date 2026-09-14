@@ -1,29 +1,27 @@
 # Hotel Room Booking
 
-Flutter hotel booking app for a Raintech Software Limited coding assessment.
+Flutter hotel booking app for the **Raintech Software Limited** coding assessment.
 
-Guests pick stay dates, choose a room, confirm the booking, and complete a demo payment. Room data is hardcoded. There is no backend and no real payment gateway.
+Guests pick stay dates, choose a room, confirm the booking, and complete a **demo payment**. Room data is hardcoded. There is no backend and no real payment gateway.
 
-All booking rules live in `BookingProvider`. Date math lives in `DateHelper`. Screens only read that state and call provider methods.
+Booking rules live in `BookingProvider`. Date math lives in `DateHelper`. Screens only read that state and call provider methods.
 
 ## How to run (Web)
 
 **Prerequisite:** Flutter SDK (Dart SDK `^3.12.2`)
 
-This project is set up to run on **Flutter Web**. Chrome is the default target.
+This project is set up for **Flutter Web**. Chrome is the default target.
 
 ```bash
 flutter pub get
 flutter run -d chrome
 ```
 
-Build for web:
+Production web build (output: `build/web`):
 
 ```bash
 flutter build web
 ```
-
-The release files are written to `build/web`.
 
 | Command | Use |
 | --- | --- |
@@ -35,7 +33,7 @@ The release files are written to `build/web`.
 
 After structural or asset changes, use a **hot restart**, not only a hot reload.
 
-`main.dart` creates `BookingProvider(enableLocalStorage: true)` and calls `loadSavedBookings()` so the app uses SharedPreferences (works in the browser). Tests create the provider with a fixed `now` and leave storage off.
+`main.dart` creates `BookingProvider(enableLocalStorage: true)` and calls `loadSavedBookings()`, so the app uses SharedPreferences (including in the browser). Tests create the provider with a fixed `now` and leave storage off.
 
 ### Android (optional)
 
@@ -48,10 +46,10 @@ flutter build apk
 
 ## App flow
 
-1. **Dashboard** — Book a Room, Booking History, occupancy for today, stored booking count, recent bookings
+1. **Dashboard** — Book a Room, Booking History, total / occupied / available rooms today, stored booking count, last 3 bookings
 2. **Booking** — check-in, check-out, guest count, filtered available rooms, nights, and total
 3. **Confirm booking** — stay summary, optional ID-proof file name, demo payment method, Complete payment
-4. **Success** — last confirmed booking (reference, room, dates, payment, total), then back to the dashboard
+4. **Success** — last confirmed booking (reference, room, dates, payment, total). Returns to the dashboard after 4 seconds, or immediately with **Back to dashboard**
 5. **History** — all stored bookings, newest first
 
 `Continue to confirmation` does not save the booking. `Complete payment` is the only call to `confirmBooking()`. Payment is a local demo. No money is collected.
@@ -78,7 +76,7 @@ If local storage is empty, this seed list is written to SharedPreferences. If st
 
 ## Date logic
 
-`DateHelper` treats every date as a calendar day. Hours and minutes are stripped with `dateOnly` so 15 Sep 18:45 and 15 Sep 00:00 are the same day.
+`DateHelper` treats every date as a calendar day. Hours and minutes are stripped with `dateOnly`, so 15 Sep 18:45 and 15 Sep 00:00 are the same day.
 
 | Rule | How it works |
 | --- | --- |
@@ -87,9 +85,9 @@ If local storage is empty, this seed list is written to SharedPreferences. If st
 | Invalid nights | `null` when a date is missing or nights are `<= 0` (same day or checkout before check-in) |
 | Display | `15 Sep 2026` |
 | Overlap | half-open: `startA < endB` and `startB < endA` |
-| Checkout day | free for the next check-in. A stay 20-22 Sep does not block a new check-in on 22 Sep |
+| Checkout day | free for the next check-in. A stay 20–22 Sep does not block a new check-in on 22 Sep |
 
-Example: R101 booked 20-22 Sep is blocked for 21-23 Sep, and free for 22-24 Sep.
+Example: R101 booked 20–22 Sep is blocked for 21–23 Sep, and free for 22–24 Sep.
 
 ## Booking and price logic
 
@@ -100,7 +98,7 @@ Example: R101 booked 20-22 Sep is blocked for 21-23 Sep, and free for 22-24 Sep.
 - Check-in and check-out are stored as date-only values
 - `today` comes from an injectable `now` function (`DateTime.now` in the app)
 - Check-in on today is valid. Check-in before today is not
-- Changing either date clears confirmation and drops the selected room if that room is now overlapping a stored booking
+- Changing either date clears confirmation and drops the selected room if that room now overlaps a stored booking
 
 **Guests**
 
@@ -127,10 +125,11 @@ Overlap is not applied until both dates are valid. `selectRoom` ignores a room t
 
 **Dashboard stats**
 
+- Total rooms: 5
 - Occupied today: unique room codes whose stored stay overlaps `[today, tomorrow)`
-- Available today: `5 - occupied`
-- Revenue: sum of every stored `totalPrice`
-- History: stored list reversed (newest first)
+- Available today: `total rooms − occupied`
+- Stored bookings: length of the saved list
+- Recent bookings: newest 3 from history
 
 ## Validation
 
@@ -148,7 +147,7 @@ The UI shows that message. Date pickers can hide some invalid days, but the prov
 
 ## Confirm, payment, and storage
 
-On Complete payment the provider:
+On **Complete payment** the provider:
 
 1. Builds a reference `BK-{roomCode}-{dd}{mm}{yyyy}` from the check-in date (example: R101 on 15 Sep 2026 → `BK-R101-15092026`)
 2. Saves a `ConfirmedBooking` (room, guests, dates, nights, total, optional proof file name, payment method)
@@ -176,9 +175,17 @@ Changing dates, room, or guest count after a confirm clears `isConfirmed` and `l
 - Optional ID-proof file name
 - Demo payment on the confirmation screen
 - Local persistence on Android and Web
-- Dashboard occupancy, revenue, and history
+- Dashboard occupancy and history
 - Provider (`ChangeNotifier`) for shared booking state
 - Unit tests for the rules above
+
+## Dependencies
+
+| Package | Use |
+| --- | --- |
+| `provider` | Shared `BookingProvider` state |
+| `shared_preferences` | Persist confirmed bookings |
+| `file_picker` | Optional ID-proof file name |
 
 ## Project structure
 
@@ -231,11 +238,9 @@ Covered cases:
 - stale nights/total cleared when dates become invalid
 - guest filter (4 guests → only R301)
 - selected room cleared when guest count exceeds capacity
-- seed overlap blocks R101 for 21-23 Sep; allows R101 from 22 Sep
+- seed overlap blocks R101 for 21–23 Sep; allows R101 from 22 Sep
 - confirm builds `BK-R101-15092026`, resets the form, stores Cash by default
 - optional proof file name and UPI are saved
 - incomplete booking is not confirmed
 - a confirmed room is hidden when the same dates are chosen again
 - choosing dates after confirm returns to draft state
-#   h o t e l _ r o o m _ b o o k i n g _ t a s k  
- 
